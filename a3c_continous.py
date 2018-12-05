@@ -155,7 +155,7 @@ class Worker(object):
                 # save actions, states and rewards in buffer
                 buffer_s.append(s)
                 buffer_a.append(a)
-                buffer_r.append((r + 8) / 8)  # normalize reward
+                buffer_r.append(r)
 
                 if total_step % UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
                     if done:
@@ -182,11 +182,7 @@ class Worker(object):
                 s = s_
                 total_step += 1
                 if done:
-                    if len(global_rewards) < 5:  # record running episode reward
-                        global_rewards.append(ep_r)
-                    else:
-                        global_rewards.append(ep_r)
-                        global_rewards[-1] = (np.mean(global_rewards[-5:]))  # smoothing
+                    global_rewards.append(ep_r)
 
                     altitude = self.env.get_altitude()
 
