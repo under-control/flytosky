@@ -12,11 +12,13 @@ import os
 import shutil
 import tensorflow as tf
 import krpc
-from env_con import GameEnv
+from ksp_env import GameEnv
+import socket
 
 # CONNECTIONS
+ip = socket.gethostbyname(socket.gethostname())
 conns = [
-   {'name': "Game ml1", "address": '127.0.0.1', "rpc_port":50000, "stream_port": 50001},
+   {'name': "Game ml1", "address": ip, "rpc_port":50000, "stream_port": 50001},
 ]
 
 # PARAMETERS

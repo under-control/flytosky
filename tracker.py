@@ -1,6 +1,6 @@
 import krpc
 import time
-from old.orbit_env import GameEnv
+from ksp_env import GameEnv
 import math
 import numpy as np
 import socket
