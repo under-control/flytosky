@@ -4,9 +4,11 @@ import time
 import pandas as pd
 import os
 
+result_dir = './log/'
+
 print("Found files: ")
 file_name = None
-for file in os.listdir('/logs'):
+for file in os.listdir(result_dir):
     if file.endswith('.csv'):
         file_name = file
 
@@ -15,7 +17,7 @@ print("Opening: ", file_name)
 
 def get_data():
     try:
-        df = pd.read_csv('../' + file_name)
+        df = pd.read_csv(result_dir + file_name)
     except Exception as e:
         exit(e)
 
