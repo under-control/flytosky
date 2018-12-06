@@ -75,7 +75,7 @@ class GameEnv(object):
 
         self.action_space = spaces.Box(action_low, action_high, dtype=np.float32)
 
-    def rotation_matrix(self, frame):
+    def rotation_matrix(self):
         """
             changing quaternions to rotation matrix
             http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
@@ -83,10 +83,7 @@ class GameEnv(object):
             :return: [m00, m01, m02, m10, m11, m12, m20, m21, m22]
         """
 
-        X = self.vessel.rotation(frame)[0]
-        Y = self.vessel.rotation(frame)[1]
-        Z = self.vessel.rotation(frame)[2]
-        W = self.vessel.rotation(frame)[3]
+        X, Y, Z, W = self.vessel.rotation(self.frame)
 
         xx = X * X
         xy = X * Y
@@ -112,7 +109,7 @@ class GameEnv(object):
         m21 = 2 * (yz + xw)
         m22 = 1 - 2 * (xx + yy)
 
-        return [m00, m01, m02, m10, m11, m12, m20, m21, m22]
+        return m00, m01, m02, m10, m11, m12, m20, m21, m22
 
     def step(self, action):
         done = False
@@ -323,3 +320,5 @@ class GameEnv(object):
 
     def get_altitude(self):
         return round(self.altitude_max, 2)
+
+
