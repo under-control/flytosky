@@ -4,9 +4,9 @@ import numpy as np
 import math
 
 '''    
-    Define the state and action sets.
-    Implement the step method that takes an state and an action and returns another state and a reward.
-    Register the environment.
+    Written in Whiteaster by Piotr Kubica
+    Code could be done better, but the purpose was to make it similar to Open AI Gym environments  
+    Another algorithms working on Gym should not make us do many changes
 '''
 
 turn_start_altitude = 250
@@ -16,7 +16,45 @@ MAX_ALT = 45000
 CONTINUOUS = True
 
 
+def get_observation_space():
+
+    low = np.array([
+        0,
+        - 1,
+        - 1,
+    ])
+
+    high = np.array([
+        1,
+        1,
+        1,
+    ])
+
+    observation_space = spaces.Box(low, high)
+    return observation_space
+
+
+def get_action_space():
+
+    action_low = np.array([
+        -1,
+        -1
+    ])
+
+    action_high = np.array([
+        1,
+        1
+    ])
+
+    action_space = spaces.Box(action_low, action_high, dtype=np.float32)
+
+    return action_space
+
+
 class GameEnv(object):
+
+    observation_space = get_observation_space()
+    action_space = get_observation_space()
 
     def __init__(self, conn):
         self.conn = conn
@@ -48,32 +86,6 @@ class GameEnv(object):
 
         self.counter = 0
         self.altitude_max = 0
-
-        low = np.array([
-                        0,
-                        - 1,
-                        - 1,
-                    ])
-
-        high = np.array([
-                        1,
-                        1,
-                        1,
-                        ])
-
-        self.observation_space = spaces.Box(low, high)
-
-        action_low = np.array([
-            -1,
-            -1
-        ])
-
-        action_high = np.array([
-            1,
-            1
-        ])
-
-        self.action_space = spaces.Box(action_low, action_high, dtype=np.float32)
 
     def rotation_matrix(self):
         """
@@ -243,7 +255,7 @@ class GameEnv(object):
 
         time.sleep(3)
 
-        self.__init__(conn)
+        self.__init__(conn)  # need to reset
 
         self.conn.space_center.physics_warp_factor = 0
 
