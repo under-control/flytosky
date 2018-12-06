@@ -1,13 +1,13 @@
+"""
+Other algorithms working on Gym should be easy to implement
+Code could be done better, but the purpose was to make it similar to Open AI Gym environments
+Written in Whiteaster by Piotr Kubica
+"""
+
 import time
 from gym import spaces
 import numpy as np
 import math
-
-'''    
-    Written in Whiteaster by Piotr Kubica
-    Code could be done better, but the purpose was to make it similar to Open AI Gym environments  
-    Another algorithms working on Gym should not make us do many changes
-'''
 
 turn_start_altitude = 250
 turn_end_altitude = 45000
@@ -17,7 +17,6 @@ CONTINUOUS = True
 
 
 def get_observation_space():
-
     low = np.array([
         0,
         - 1,
@@ -35,7 +34,6 @@ def get_observation_space():
 
 
 def get_action_space():
-
     action_low = np.array([
         -1,
         -1
@@ -78,36 +76,33 @@ class GameEnv(object):
         self.crew = conn.add_stream(getattr, self.vessel, 'crew_count')
         self.parts = conn.add_stream(getattr, self.vessel.parts, 'all')
 
-        self.prev_pitch = 90
-
         # Pre-launch setup
         self.vessel.control.sas = False
         self.vessel.control.rcs = False
-
+        self.prev_pitch = 90
         self.counter = 0
         self.altitude_max = 0
 
     def rotation_matrix(self):
         """
-            changing quaternions to rotation matrix
+            changing quaternions to rotation matrix, from 4 to 9 parameters, based on:
             http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
-            :param frame: reference_frame
-            :return: [m00, m01, m02, m10, m11, m12, m20, m21, m22]
+            :return m00, m01, m02, m10, m11, m12, m20, m21, m22:
         """
 
-        X, Y, Z, W = self.vessel.rotation(self.frame)
+        x, y, z, w = self.vessel.rotation(self.frame)
 
-        xx = X * X
-        xy = X * Y
-        xz = X * Z
-        xw = X * W
+        xx = x * x
+        xy = x * y
+        xz = x * z
+        xw = x * w
 
-        yy = Y * Y
-        yz = Y * Z
-        yw = Y * W
+        yy = y * y
+        yz = y * z
+        yw = y * w
 
-        zz = Z * Z
-        zw = Z * W
+        zz = z * z
+        zw = z * w
 
         m00 = 1 - 2 * (yy + zz)
         m01 = 2 * (xy - zw)
@@ -124,6 +119,19 @@ class GameEnv(object):
         return m00, m01, m02, m10, m11, m12, m20, m21, m22
 
     def step(self, action):
+        """
+        possible continuous actions: yaw[-1:1], pitch[-1:1], roll[-1:1], throttle[0:1],
+        other: forward[-1:1], up[-1:1], right[-1:1], wheel_throttle[-1:1], wheel_steering[-1:1],
+        available observation
+        https://krpc.github.io/krpc/python/api/space-center/control.html
+        available states:
+        https://krpc.github.io/krpc/python/api/space-center/flight.html
+        https://krpc.github.io/krpc/python/api/space-center/orbit.html
+        https://krpc.github.io/krpc/python/api/space-center/reference-frame.html
+        :param action:
+        :return state, reward, done, {}:
+        """
+
         done = False
 
         action = action.tolist()
@@ -131,12 +139,6 @@ class GameEnv(object):
         self.conn.ui.message(str(action), duration=0.5)
 
         start_act = self.ut()
-
-        '''
-        https://krpc.github.io/krpc/python/api/space-center/control.html
-        possible continuous actions: yaw[-1:1], pitch[-1:1], roll[-1:1], throttle[0:1],
-        other: forward[-1:1], up[-1:1], right[-1:1], wheel_throttle[-1:1], wheel_steering[-1:1],
-        '''
 
         if CONTINUOUS:
             self.vessel.control.pitch = action[0]
@@ -159,15 +161,9 @@ class GameEnv(object):
             if action == 4:
                 self.vessel.control.yaw = 1
 
+        # 10 actions in one second in game time
         while self.ut() - start_act <= 0.1:
             continue
-
-        '''
-        available states:
-        https://krpc.github.io/krpc/python/api/space-center/flight.html
-        https://krpc.github.io/krpc/python/api/space-center/orbit.html
-        https://krpc.github.io/krpc/python/api/space-center/reference-frame.html
-        '''
 
         state = self.get_state()
 
@@ -175,7 +171,7 @@ class GameEnv(object):
 
         reward, done = self.epoch_ending(reward, done)
 
-        self.conn.ui.message(str(state) + "reward: "+str(reward), duration=0.5)
+        self.conn.ui.message(str(state) + " reward: "+str(reward), duration=0.5)
 
         self.counter += 1
 
@@ -190,37 +186,37 @@ class GameEnv(object):
 
     def epoch_ending(self, reward, done):
 
-        if self.altitude() >= MAX_ALT:                      # expected altitude
+        if self.altitude() >= MAX_ALT:
             reward += 1000
             done = True
-            print('reached max altitude at: ', self.altitude())
+            print('reached max altitude at: ', self.altitude(), end=' | ')
 
-        elif self.periapsis() > 150000:                     # extra win
+        elif self.periapsis() > 150000:
             reward += 1000000
             done = True
             print('you won, congrats!')
 
-        elif self.crew() == 0:                              # check if crew is alive
+        elif self.crew() == 0:
             done = True
             print('crew is dead :(')
 
-        elif self.counter >= 200000:                        # finish after 200k steps
+        elif self.counter >= 200000:
             done = True
             print('finished after 200k steps')
 
-        elif self.altitude() < 20:                          # finish if rocket was down
+        elif self.altitude() < 20:
             done = True
-            print('altitude < 20')
+            print('rocket went down, altitude < 20')
 
         elif self.pitch() < 60 and self.altitude() <= 5000:
             done = True
-            print('pitch < 60 and altitude <= 5000')
+            print('pitch < 60 and altitude <= 5000', end=' | ')
 
         elif self.pitch() < -5 and self.altitude() <= 45000:
             done = True
-            print('pitch < -5 and altitude <= 45000')
+            print('pitch < -5 and altitude <= 45000', end=' | ')
 
-        elif len(self.parts()) <= 1:                        # if self.lift() == (-0.0, 0.0, -0.0):
+        elif len(self.parts()) <= 1:
             done = True
             print('parts = ', len(self.parts()))
 
@@ -228,7 +224,7 @@ class GameEnv(object):
             done = True
             print('you started falling really fast')
 
-        elif self.counter >= 60 and self.altitude() < 88:   # check if rocket started
+        elif self.counter >= 60 and self.altitude() < 88:
             done = True
             print('rocket did not start within 60 moves')
 
@@ -236,26 +232,26 @@ class GameEnv(object):
 
     def reset(self, conn):
         """
-        revivekerbals is a save file /GOG/KSP/game/saves/kill
-        to run the code you will need to dowload it from
+        revivekerbals is a quick save file and should be in /GOG/KSP/game/saves/kill
+        to run the code you will need to download it from
         https://drive.google.com/file/d/1khVq9FyAcpDxxF5_71i_3nXNvDf79OWl
         :param conn: krpc.connection
         :return: state
         """
         self.altitude_max = 0
 
-        quicksave_name = "revivekerbals"
+        quick_save = "revivekerbals"
 
         try:
-            self.conn.space_center.load(quicksave_name)
+            self.conn.space_center.load(quick_save)
         except Exception as ex:
             print("Error:", ex)
             print("Add \"kill\" save to your saves directory")
-            exit("You have no quicksave named {}. Terminating.".format(quicksave_name))
+            exit("You have no quick save named {}. Terminating.".format(quick_save))
 
         time.sleep(3)
 
-        self.__init__(conn)  # need to reset
+        self.__init__(conn)  # game is reloaded and we need to reset the telemetry
 
         self.conn.space_center.physics_warp_factor = 0
 
