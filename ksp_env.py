@@ -16,48 +16,26 @@ MAX_ALT = 45000
 CONTINUOUS = True
 
 
-def get_observation_space():
-    low = np.array([
-        0,
-        - 1,
-        - 1,
-    ])
-
-    high = np.array([
-        1,
-        1,
-        1,
-    ])
-
-    observation_space = spaces.Box(low, high)
-    return observation_space
-
-
-def get_action_space():
-    action_low = np.array([
-        -1,
-        -1
-    ])
-
-    action_high = np.array([
-        1,
-        1
-    ])
-
-    action_space = spaces.Box(action_low, action_high, dtype=np.float32)
-
-    return action_space
-
-
 class GameEnv(object):
 
-    observation_space = get_observation_space()
-    action_space = get_observation_space()
-
     def __init__(self, conn):
+
+        self.set_telemetry(conn)
+        self.pre_launch_setup()
+
+        self.observation_space = self.get_observation_space()
+        self.action_space = self.get_observation_space()
+
+    def pre_launch_setup(self):
+        self.vessel.control.sas = False
+        self.vessel.control.rcs = False
+        self.prev_pitch = 90
+        self.counter = 0
+        self.altitude_max = 0
+
+    def set_telemetry(self, conn):
         self.conn = conn
         self.vessel = conn.space_center.active_vessel
-
         # Setting up streams for telemetry
         self.ut = conn.add_stream(getattr, conn.space_center, 'ut')
         self.altitude = conn.add_stream(getattr, self.vessel.flight(), 'mean_altitude')
@@ -76,12 +54,38 @@ class GameEnv(object):
         self.crew = conn.add_stream(getattr, self.vessel, 'crew_count')
         self.parts = conn.add_stream(getattr, self.vessel.parts, 'all')
 
-        # Pre-launch setup
-        self.vessel.control.sas = False
-        self.vessel.control.rcs = False
-        self.prev_pitch = 90
-        self.counter = 0
-        self.altitude_max = 0
+    @staticmethod
+    def get_action_space():
+        action_low = np.array([
+            -1,
+            -1
+        ])
+
+        action_high = np.array([
+            1,
+            1
+        ])
+
+        action_space = spaces.Box(action_low, action_high, dtype=np.float32)
+
+        return action_space
+
+    @staticmethod
+    def get_observation_space():
+        low = np.array([
+            0,
+            - 1,
+            - 1,
+        ])
+
+        high = np.array([
+            1,
+            1,
+            1,
+        ])
+
+        observation_space = spaces.Box(low, high)
+        return observation_space
 
     def rotation_matrix(self):
         """
@@ -251,7 +255,9 @@ class GameEnv(object):
 
         time.sleep(3)
 
-        self.__init__(conn)  # game is reloaded and we need to reset the telemetry
+        # game is reloaded and we need to reset the telemetry
+        self.set_telemetry(conn)
+        self.pre_launch_setup()
 
         self.conn.space_center.physics_warp_factor = 0
 
