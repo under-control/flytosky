@@ -238,7 +238,7 @@ class GameEnv(object):
         """
         revivekerbals is a quick save file and should be in /GOG/KSP/game/saves/kill
         to run the code you will need to download it from
-        https://drive.google.com/file/d/1khVq9FyAcpDxxF5_71i_3nXNvDf79OWl
+        https://drive.google.com/file/d/1L1DdeUdHpcMSmO8royVWocitVR93UwdE
         :param conn: krpc.connection
         :return: state
         """
