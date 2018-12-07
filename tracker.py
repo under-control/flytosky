@@ -3,12 +3,8 @@ import time
 from ksp_env import GameEnv
 import math
 import numpy as np
-import socket
 
-# ip can be also local 127.0.0.1
-ip = socket.gethostbyname(socket.gethostname())
-
-conn = krpc.connect(name='Tracker', address=ip)
+conn = krpc.connect(name='Tracker')
 env = GameEnv(conn)
 vessel = env.vessel
 

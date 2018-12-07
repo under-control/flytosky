@@ -43,7 +43,7 @@ def update():
     plt.xlabel("Epochs")
     plt.ylabel("Max alt / reward")
     plt.title("Sincos 2d yaw and pitch, altitude also as state")
-    plt.plot(rew, label='reward')
+    plt.plot(ser, rew, label='reward')
 
     z = numpy.polyfit(ser, alt, 1)
     p = numpy.poly1d(z)
