@@ -23,15 +23,31 @@ class GameEnv(object):
         self.set_telemetry(conn)
         self.pre_launch_setup()
 
-        self.observation_space = self.get_observation_space()
-        self.action_space = self.get_observation_space()
+        action_low = np.array([
+            -1,
+            -1
+        ])
 
-    def pre_launch_setup(self):
-        self.vessel.control.sas = False
-        self.vessel.control.rcs = False
-        self.prev_pitch = 90
-        self.counter = 0
-        self.altitude_max = 0
+        action_high = np.array([
+            1,
+            1
+        ])
+
+        self.action_space = spaces.Box(action_low, action_high, dtype=np.float32)
+
+        low = np.array([
+            0,
+            - 1,
+            - 1,
+        ])
+
+        high = np.array([
+            1,
+            1,
+            1,
+        ])
+
+        self.observation_space = spaces.Box(low, high)
 
     def set_telemetry(self, conn):
         self.conn = conn
@@ -54,38 +70,12 @@ class GameEnv(object):
         self.crew = conn.add_stream(getattr, self.vessel, 'crew_count')
         self.parts = conn.add_stream(getattr, self.vessel.parts, 'all')
 
-    @staticmethod
-    def get_action_space():
-        action_low = np.array([
-            -1,
-            -1
-        ])
-
-        action_high = np.array([
-            1,
-            1
-        ])
-
-        action_space = spaces.Box(action_low, action_high, dtype=np.float32)
-
-        return action_space
-
-    @staticmethod
-    def get_observation_space():
-        low = np.array([
-            0,
-            - 1,
-            - 1,
-        ])
-
-        high = np.array([
-            1,
-            1,
-            1,
-        ])
-
-        observation_space = spaces.Box(low, high)
-        return observation_space
+    def pre_launch_setup(self):
+        self.vessel.control.sas = False
+        self.vessel.control.rcs = False
+        self.prev_pitch = 90
+        self.counter = 0
+        self.altitude_max = 0
 
     def rotation_matrix(self):
         """
