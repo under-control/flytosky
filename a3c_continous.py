@@ -12,12 +12,9 @@ import shutil
 import tensorflow as tf
 import krpc
 from ksp_env import GameEnv
-import socket
 
-# CONNECTIONS
-ip = socket.gethostbyname(socket.gethostname())
 conns = [
-   {'name': "Game ml1", "address": ip, "rpc_port":50000, "stream_port": 50001},
+   {'name': "Game ml1", "address": '127.0.0.1', "rpc_port": 50000, "stream_port": 50001},
 ]
 
 # PARAMETERS
@@ -27,7 +24,6 @@ result_file = os.path.join(LOG_DIR, "res"+str(dt.datetime.now().strftime("%Y-%m-
 fieldnames = ['counter', 'altitude', 'reward']
 N_WORKERS = len(conns)
 MAX_EP_STEP = 200000
-MAX_GLOBAL_EP = 200000
 GLOBAL_NET_SCOPE = 'Global_Net'
 UPDATE_GLOBAL_ITER = 10
 GAMMA = 0.90
@@ -43,7 +39,7 @@ env.reset(connections[0])
 
 NUM_STATES = env.observation_space.shape[0]
 NUM_ACTIONS = env.action_space.shape[0]
-A_BOUND = [env.action_space.low, env.action_space.high]
+ACTION_BOUND = [env.action_space.low, env.action_space.high]
 
 
 # Network for the Actor Critic
@@ -71,7 +67,7 @@ class ACNet(object):
                     self.c_loss = tf.reduce_mean(tf.square(td))
 
                 with tf.name_scope('wrap_a_out'):
-                    mu, sigma = mu * A_BOUND[1], sigma + 1e-4
+                    mu, sigma = mu * ACTION_BOUND[1], sigma + 1e-4
 
                 normal_dist = tf.contrib.distributions.Normal(mu, sigma)
 
@@ -83,7 +79,7 @@ class ACNet(object):
                     self.a_loss = tf.reduce_mean(-self.exp_v)
 
                 with tf.name_scope('choose_a'):  # use local params to choose action
-                    self.A = tf.clip_by_value(tf.squeeze(normal_dist.sample(1), axis=0), A_BOUND[0], A_BOUND[1])
+                    self.A = tf.clip_by_value(tf.squeeze(normal_dist.sample(1), axis=0), *ACTION_BOUND)
                 with tf.name_scope('local_grad'):  # calculate gradients for the network weights
                     self.a_grads = tf.gradients(self.a_loss, self.a_params)
                     self.c_grads = tf.gradients(self.c_loss, self.c_params)
@@ -134,7 +130,7 @@ class Worker(object):
         global global_rewards, global_episodes
         total_step = 1
         buffer_s, buffer_a, buffer_r = [], [], []
-        while not coord.should_stop() and global_episodes < MAX_GLOBAL_EP:
+        while not coord.should_stop():
             s = self.env.reset(self.conn)
             ep_r = 0
             self.env.activate_engine()

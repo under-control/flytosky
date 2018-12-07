@@ -171,7 +171,7 @@ class GameEnv(object):
 
         reward, done = self.epoch_ending(reward, done)
 
-        self.conn.ui.message(str(state) + " reward: "+str(reward), duration=0.5)
+        self.conn.ui.message("Reward: "+str(round(reward, 2)), duration=0.5)
 
         self.counter += 1
 
@@ -194,7 +194,7 @@ class GameEnv(object):
         elif self.periapsis() > 150000:
             reward += 1000000
             done = True
-            print('you won, congrats!')
+            print('you\'re orbiting at 150km, congrats!')
 
         elif self.crew() == 0:
             done = True
