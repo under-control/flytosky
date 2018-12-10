@@ -2,7 +2,7 @@
 
 Below you can find medium article with whole story and short tutorial how to start.
 
-[https://medium.com/@piotrkubica94/bbe3167f28b8](https://medium.com/@piotrkubica94/bbe3167f28b8)
+[https://medium.com/@whiteastercom/kerbal-space-program-complex-environment-for-reinforcement-learning](https://medium.com/@whiteastercom/kerbal-space-program-complex-environment-for-reinforcement-learning-12318db065f5)
 
 [log](https://github.com/under-control/flytosky/tree/master/log) - tensorflow session with results csv
 
