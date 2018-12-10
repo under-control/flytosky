@@ -16,7 +16,7 @@ print("Opening: ", file_name)
 
 def get_data():
     try:
-        df = pd.read_csv(LOG_DIR + file_name)
+        df = pd.read_csv(os.path.join(LOG_DIR, file_name))
     except Exception as e:
         exit(e)
 
