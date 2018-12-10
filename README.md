@@ -1,7 +1,10 @@
 # Kerbal Space Program - complex environment for Reinforcement Learning
 
 Below you can find medium article with whole story and short tutorial how to start.
+
 [https://medium.com/@whiteastercom/kerbal-space-program-complex-environment-for-reinforcement-learning](https://medium.com/@whiteastercom/kerbal-space-program-complex-environment-for-reinforcement-learning-12318db065f5)
+
+#
 
 ### Files description:
 
@@ -19,5 +22,5 @@ Below you can find medium article with whole story and short tutorial how to sta
 
 [tracker.py](https://github.com/under-control/flytosky/blob/master/tracker.py) - shows the data in console and inside the game
 
-
+#
 Piotr Kubica - Machine Learning Engineer at [Whiteaster](https://whiteaster.com/)
