@@ -8,12 +8,7 @@ import time
 from gym import spaces
 import numpy as np
 import math
-
-turn_start_altitude = 250
-turn_end_altitude = 45000
-MAX_ALT = 45000
-
-CONTINUOUS = True
+from config import turn_start_altitude, turn_end_altitude, MAX_ALT, CONTINUOUS
 
 
 class GameEnv(object):
@@ -47,7 +42,7 @@ class GameEnv(object):
             1,
         ])
 
-        self.observation_space = spaces.Box(low, high)
+        self.observation_space = spaces.Box(low, high, dtype=np.float32)
 
     def set_telemetry(self, conn):
         self.conn = conn
@@ -143,17 +138,7 @@ class GameEnv(object):
             self.vessel.control.yaw = 0
             self.vessel.control.roll = 0
 
-            if action == 0:
-                # do nothing action, wait
-                pass
-            if action == 1:
-                self.vessel.control.pitch = -1
-            if action == 2:
-                self.vessel.control.pitch = 1
-            if action == 3:
-                self.vessel.control.yaw = -1
-            if action == 4:
-                self.vessel.control.yaw = 1
+            self.choose_action(action)
 
         # 10 actions in one second in game time
         while self.ut() - start_act <= 0.1:
@@ -171,12 +156,25 @@ class GameEnv(object):
 
         if done:
             self.counter = 0
-            reward -= 500 * (1 - self.altitude()/MAX_ALT)  # part of traveled distance
+            reward -= 500 * (1 - self.altitude() / MAX_ALT)  # part of traveled distance
 
         if self.altitude() > self.altitude_max:
             self.altitude_max = self.altitude()
 
         return state, reward, done, {}
+
+    def choose_action(self, action):
+        if action == 0:
+            # do nothing action, wait
+            pass
+        if action == 1:
+            self.vessel.control.pitch = -1
+        if action == 2:
+            self.vessel.control.pitch = 1
+        if action == 3:
+            self.vessel.control.yaw = -1
+        if action == 4:
+            self.vessel.control.yaw = 1
 
     def epoch_ending(self, reward, done):
 

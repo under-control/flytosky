@@ -6,30 +6,14 @@ https://github.com/MorvanZhou/Reinforcement-learning-with-tensorflow/blob/master
 import threading
 import numpy as np
 import csv
-import datetime as dt
 import os
 import shutil
 import tensorflow as tf
 import krpc
+
+from config import OUTPUT_GRAPH, LOG_DIR, result_file, fieldnames, N_WORKERS, MAX_EP_STEP, GLOBAL_NET_SCOPE, \
+    UPDATE_GLOBAL_ITER, GAMMA, ENTROPY_BETA, LR_A, LR_C, conns
 from ksp_env import GameEnv
-
-conns = [
-   {'name': "Game ml1", "address": '127.0.0.1', "rpc_port": 50000, "stream_port": 50001},
-]
-
-# PARAMETERS
-OUTPUT_GRAPH = True
-LOG_DIR = './log'
-result_file = os.path.join(LOG_DIR, "res"+str(dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+".csv").replace(' ', '_'))
-fieldnames = ['counter', 'altitude', 'reward']
-N_WORKERS = len(conns)
-MAX_EP_STEP = 200000
-GLOBAL_NET_SCOPE = 'Global_Net'
-UPDATE_GLOBAL_ITER = 10
-GAMMA = 0.90
-ENTROPY_BETA = 0.01
-LR_A = 0.0001
-LR_C = 0.001
 
 print(conns)
 connections = [krpc.connect(**conns[i]) for i in range(N_WORKERS)]
@@ -40,7 +24,6 @@ env.reset(connections[0])
 NUM_STATES = env.observation_space.shape[0]
 NUM_ACTIONS = env.action_space.shape[0]
 ACTION_BOUND = [env.action_space.low, env.action_space.high]
-
 
 # Network for the Actor Critic
 class ACNet(object):
@@ -96,12 +79,12 @@ class ACNet(object):
         w_init = tf.random_normal_initializer(0., .1)
         with tf.variable_scope('actor'):
             l_af = tf.layers.dense(self.states, 64, tf.nn.tanh, kernel_initializer=w_init, name='la')
-            l_al = tf.layers.dense(l_af, 64, tf.nn.tanh, kernel_initializer=w_init, name='lala')
+            l_al = tf.layers.dense(l_af, 64, tf.nn.tanh, kernel_initializer=w_init, name='lal')
             mu = tf.layers.dense(l_al, NUM_ACTIONS, tf.nn.tanh, kernel_initializer=w_init, name='mu')
             sigma = tf.layers.dense(l_al, NUM_ACTIONS, tf.nn.softplus, kernel_initializer=w_init, name='sigma')
         with tf.variable_scope('critic'):
-            l_cf = tf.layers.dense(self.states, 64, tf.nn.relu, kernel_initializer=w_init, name='lc')
-            l_cl = tf.layers.dense(l_cf, 64, tf.nn.relu, kernel_initializer=w_init, name='lclc')
+            l_cf = tf.layers.dense(self.states, 32, tf.nn.relu, kernel_initializer=w_init, name='lc')
+            l_cl = tf.layers.dense(l_cf, 32, tf.nn.relu, kernel_initializer=w_init, name='lcl')
             v = tf.layers.dense(l_cl, 1, kernel_initializer=w_init, name='v')  # estimated value for state
         a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/actor')
         c_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/critic')
@@ -121,9 +104,9 @@ class ACNet(object):
 class Worker(object):
     def __init__(self, name, globalAC, sess, conn):
         self.conn = conn
-        self.env = GameEnv(conn=self.conn)  # make environment for each worker
+        self.env = GameEnv(conn=self.conn)
         self.name = name
-        self.AC = ACNet(name, sess, globalAC)  # create ACNet for each worker
+        self.AC = ACNet(name, sess, globalAC)
         self.sess = sess
 
     def work(self):
@@ -145,24 +128,7 @@ class Worker(object):
                 buffer_r.append(r)
 
                 if total_step % UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
-                    if done:
-                        v_s_ = 0  # terminal
-                    else:
-                        v_s_ = self.sess.run(self.AC.v, {self.AC.states: [s_]})[0, 0]
-                    buffer_v_target = []
-                    for r in buffer_r[::-1]:  # reverse buffer r
-                        v_s_ = r + GAMMA * v_s_
-                        buffer_v_target.append(v_s_)
-                    buffer_v_target.reverse()
-
-                    buffer_s, buffer_a, buffer_v_target = np.vstack(buffer_s), np.vstack(buffer_a), np.vstack(
-                        buffer_v_target)
-                    feed_dict = {
-                        self.AC.states: buffer_s,
-                        self.AC.a_his: buffer_a,
-                        self.AC.v_target: buffer_v_target,
-                    }
-                    self.AC.update_global(feed_dict)  # actual training step, update global ACNet
+                    self.update_from_buffer(buffer_a, buffer_r, buffer_s, done, s_)
                     buffer_s, buffer_a, buffer_r = [], [], []
                     self.AC.pull_global()  # get global parameters to local ACNet
 
@@ -170,23 +136,42 @@ class Worker(object):
                 total_step += 1
                 if done:
                     global_rewards.append(ep_r)
-
-                    altitude = self.env.get_altitude()
-
-                    with open(result_file, 'a', newline='') as csvf:
-                        wri = csv.DictWriter(csvf, fieldnames=fieldnames)
-                        wri.writerow({'counter': global_episodes,
-                                      'altitude': altitude,
-                                      'reward': round(ep_r, 2)})
-
-                    print(
-                        self.name,
-                        "Episode: {:4}".format(global_episodes),
-                        "| Reward: {:7.1f}".format(global_rewards[-1]),
-                        "| Altitude: {:7.1f}".format(altitude)
-                    )
+                    self.save_results(ep_r, global_episodes, global_rewards)
                     global_episodes += 1
                     break
+
+    def update_from_buffer(self, buffer_a, buffer_r, buffer_s, done, s_):
+        if done:
+            v_s_ = 0  # terminal
+        else:
+            v_s_ = self.sess.run(self.AC.v, {self.AC.states: [s_]})[0, 0]
+        buffer_v_target = []
+        for r in buffer_r[::-1]:  # reverse buffer r
+            v_s_ = r + GAMMA * v_s_
+            buffer_v_target.append(v_s_)
+        buffer_v_target.reverse()
+        buffer_s, buffer_a, buffer_v_target = np.vstack(buffer_s), np.vstack(buffer_a), np.vstack(
+            buffer_v_target)
+        feed_dict = {
+            self.AC.states: buffer_s,
+            self.AC.a_his: buffer_a,
+            self.AC.v_target: buffer_v_target,
+        }
+        self.AC.update_global(feed_dict)  # actual training step, update global ACNet
+
+    def save_results(self, ep_r, global_episodes, global_rewards):
+        altitude = self.env.get_altitude()
+        with open(result_file, 'a', newline='') as csvf:
+            wri = csv.DictWriter(csvf, fieldnames=fieldnames)
+            wri.writerow({'counter': global_episodes,
+                          'altitude': altitude,
+                          'reward': round(ep_r, 2)})
+        print(
+            self.name,
+            "Episode: {:4}".format(global_episodes),
+            "| Reward: {:7.1f}".format(global_rewards[-1]),
+            "| Altitude: {:7.1f}".format(altitude)
+        )
 
 
 if __name__ == "__main__":
