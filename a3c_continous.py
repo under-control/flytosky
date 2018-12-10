@@ -128,7 +128,23 @@ class Worker(object):
                 buffer_r.append(r)
 
                 if total_step % UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
-                    self.update_from_buffer(buffer_a, buffer_r, buffer_s, done, s_)
+                    if done:
+                        v_s_ = 0  # terminal
+                    else:
+                        v_s_ = self.sess.run(self.AC.v, {self.AC.states: [s_]})[0, 0]
+                    buffer_v_target = []
+                    for r in buffer_r[::-1]:  # reverse buffer r
+                        v_s_ = r + GAMMA * v_s_
+                        buffer_v_target.append(v_s_)
+                    buffer_v_target.reverse()
+                    buffer_s, buffer_a, buffer_v_target = np.vstack(buffer_s), np.vstack(buffer_a), np.vstack(
+                        buffer_v_target)
+                    feed_dict = {
+                        self.AC.states: buffer_s,
+                        self.AC.a_his: buffer_a,
+                        self.AC.v_target: buffer_v_target,
+                    }
+                    self.AC.update_global(feed_dict)  # actual training step, update global ACNet
                     buffer_s, buffer_a, buffer_r = [], [], []
                     self.AC.pull_global()  # get global parameters to local ACNet
 
@@ -139,25 +155,6 @@ class Worker(object):
                     self.save_results(ep_r, global_episodes, global_rewards)
                     global_episodes += 1
                     break
-
-    def update_from_buffer(self, buffer_a, buffer_r, buffer_s, done, s_):
-        if done:
-            v_s_ = 0  # terminal
-        else:
-            v_s_ = self.sess.run(self.AC.v, {self.AC.states: [s_]})[0, 0]
-        buffer_v_target = []
-        for r in buffer_r[::-1]:  # reverse buffer r
-            v_s_ = r + GAMMA * v_s_
-            buffer_v_target.append(v_s_)
-        buffer_v_target.reverse()
-        buffer_s, buffer_a, buffer_v_target = np.vstack(buffer_s), np.vstack(buffer_a), np.vstack(
-            buffer_v_target)
-        feed_dict = {
-            self.AC.states: buffer_s,
-            self.AC.a_his: buffer_a,
-            self.AC.v_target: buffer_v_target,
-        }
-        self.AC.update_global(feed_dict)  # actual training step, update global ACNet
 
     def save_results(self, ep_r, global_episodes, global_rewards):
         altitude = self.env.get_altitude()
